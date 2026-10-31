@@ -1,0 +1,4 @@
+PySide6
+mutagen
+yt-dlp
+pyinstaller
