@@ -1,0 +1,1 @@
+"""Bubble Player application package."""
