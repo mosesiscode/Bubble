@@ -633,10 +633,9 @@ class RPanel(QFrame):
     def set_cover(s, pm): s.old = s.cur; s.src = pm; s.cur = s._mk(pm); s.an.stop(); s.an.start()
     def resizeEvent(s, e):
         super().resizeEvent(e)
-        if getattr(s, 'bgraw', None) is not None: s.set_frame(s.bgraw)
         if getattr(s, 'src', None): s.cur = s._mk(s.src); s.old = None
-
-        p = QPainter(s); p.setRenderHint(QPainter.Antialiasing); pa = QPainterPath(); pa.addRoundedRect(QRectF(s.rect()).adjusted(.5, .5, -.5, -.5), 22, 22); p.setClipPath(pa); p.fillRect(s.rect(), s.base)
+    def paintEvent(s, e):
+        p = QPainter(s); p.setRenderHint(QPainter.Antialiasing); pa = QPainterPath(); pa.addRoundedRect(QRectF(s.rect()).adjusted(.5, .5, -.5, -.5), 22, 22); p.setClipPath(pa); base = QColor(s.base); base.setAlpha(255 if s.cur else 130); p.fillRect(s.rect(), base)
         for pm, op in ((s.old, 1.), (s.cur, s.a)):
             if pm: p.setOpacity(op); p.drawPixmap((s.width() - pm.width()) // 2, (s.height() - pm.height()) // 2, pm)
         overlay = QColor(255, 255, 255, 205 if s.cur else 0) if TEXT == '#17171b' else QColor(0, 0, 0, 150 if s.cur else 0)
@@ -785,6 +784,7 @@ class SpectrumMeter(QWidget):
         s.levels = [max(.015, x * .94) for x in s.levels]; s.update()
     def paintEvent(s, event):
         p = QPainter(s); p.setRenderHint(QPainter.Antialiasing); p.fillRect(s.rect(), Qt.transparent)
+        if max(s.levels) < .04: return          # silence: draw nothing (idle dots looked like a dashed line)
         mode = getattr(s, 'mode', 'Bars')
         if mode == 'Dots':
             gap = s.width() / len(s.levels); radius = max(2.0, min(5.0, gap * .24)); cy = s.height() / 2
@@ -933,7 +933,7 @@ class Win(QWidget):
         sr.addStretch(); v.addLayout(sr); s.sec_new = s.sec('Recently added', 'library'); v.addWidget(s.sec_new); s.row2 = QHBoxLayout(); s.row2.setSpacing(4); v.addLayout(s.row2)
         s.hint = QLabel('Your music will show up here.'); s.hint.setObjectName('dim'); v.addSpacing(16); v.addWidget(s.hint); v.addSpacing(8)
         s.hbtn = QPushButton('Import music folder'); s.hbtn.setObjectName('grey'); s.hbtn.clicked.connect(s.add_folder); v.addWidget(s.hbtn, 0, Qt.AlignLeft); v.addStretch()
-        sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); sc.viewport().setAutoFillBackground(False); sc.setWidget(w); s.hw = sc; return sc
+        sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); sc.viewport().setAutoFillBackground(False); sc.setWidget(w); w.setAutoFillBackground(False); s.hw = sc; return sc
     def mk_youtube(s):
         page = QWidget(); v = QVBoxLayout(page); v.setContentsMargins(22, 14, 22, 18)
         s.yttoolbar = QWidget(); bar = QHBoxLayout(s.yttoolbar); title = QLabel('YouTube'); title.setObjectName('h1'); bar.addWidget(title); bar.addStretch()
@@ -2378,7 +2378,7 @@ class Win(QWidget):
         reset = QPushButton('Reset all songs in library'); reset.setObjectName('grey'); reset.clicked.connect(s.reset_library); v.addWidget(reset, 0, Qt.AlignLeft)
         c = QLabel('Preferences'); c.setObjectName('h2'); v.addSpacing(10); v.addWidget(c)
         reset_prefs = QPushButton('Reset settings to defaults'); reset_prefs.setObjectName('grey'); reset_prefs.clicked.connect(s.reset_settings); v.addWidget(reset_prefs, 0, Qt.AlignLeft)
-        v.addStretch(); s.fl_upd(); sc.setWidget(w); return sc
+        v.addStretch(); s.fl_upd(); sc.setWidget(w); w.setAutoFillBackground(False); return sc
 
 def main():
     global B
