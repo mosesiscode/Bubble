@@ -20,7 +20,7 @@ COV = {}; TH = {}                            # key -> QPixmap cache
 from bubble.config import DATA_DIR, EXT, SONGS_DIR, create_windows_shortcuts, load_cfg, restore_cfg_backup, save_cfg
 from bubble.services.importers import apple_import, deezer_import, fetch, resolve, spotdl_command, spotify_files, yt_import
 from bubble.services.library import duplicate_groups, extras, parse_lrc, tag, write_lrc
-from bubble.services.discord_presence import DiscordPresence
+from bubble.services.discord_presence import DEFAULT_DISCORD_ID, DiscordPresence
 from bubble.services.plugin_host import load_plugins
 from bubble.ui.audio_editor import AudioEditorDialog
 from bubble.ui.plugin_manager import PluginManagerDialog
@@ -848,8 +848,8 @@ class Win(QWidget):
         s.pl.playbackStateChanged.connect(lambda _: s.update_discord_presence())
         s.pl.playbackStateChanged.connect(lambda _: s.update_mini_player())
         s.bind_shortcuts()
-        if s.cfg.get('discord_presence') and s.cfg.get('discord_client_id'):
-            s.discord = DiscordPresence(s.cfg['discord_client_id'])
+        if s.cfg.get('discord_presence'):
+            s.discord = DiscordPresence(s.cfg.get('discord_client_id') or DEFAULT_DISCORD_ID)
         s.set_media(s.cfg.get('bg_media') or '', False); s.go(0); s.add_tracks(s.cfg.get('remote', []), save=False)
         s.setWindowOpacity(max(60, min(100, int(s.cfg.get('window_opacity', 100)))) / 100)
         if s.cfg.get('layout_preset') == 'Compact': s.rpanel.hide()
@@ -1422,20 +1422,19 @@ class Win(QWidget):
         s.cfg['volume'] = value; s.apply_track_volume(); save_cfg(s.cfg)
     def set_discord_presence(s, enabled):
         if s.discord: s.discord.stop(); s.discord = None
-        client_id = s.discord_id.text().strip() if hasattr(s, 'discord_id') else s.cfg.get('discord_client_id', '')
+        client_id = (s.discord_id.text().strip() if hasattr(s, 'discord_id') else s.cfg.get('discord_client_id', '')).strip() or DEFAULT_DISCORD_ID
+        if hasattr(s, 'discord_id') and not s.discord_id.text().strip():
+            s.discord_id.setText(client_id)
         s.cfg['discord_client_id'] = client_id; s.cfg['discord_presence'] = bool(enabled); save_cfg(s.cfg)
-        if enabled and client_id:
+        if enabled:
             s.discord = DiscordPresence(client_id); s.update_discord_presence()
-        elif enabled:
-            s.discord_chk.blockSignals(True); s.discord_chk.setChecked(False); s.discord_chk.blockSignals(False); s.cfg['discord_presence'] = False; save_cfg(s.cfg)
-            QMessageBox.information(s, 'Discord Rich Presence', 'Add your Discord application ID first. Bubble connects to Discord only after you enable this option.')
     def save_discord_id(s):
-        s.cfg['discord_client_id'] = s.discord_id.text().strip(); save_cfg(s.cfg)
+        s.cfg['discord_client_id'] = s.discord_id.text().strip() or DEFAULT_DISCORD_ID; save_cfg(s.cfg)
         if s.cfg.get('discord_presence'): s.set_discord_presence(True)
     def update_discord_presence(s):
         if not s.discord or not (0 <= s.i < len(s.T)): return
         track = s.T[s.i]; playing = s.pl.playbackState() == QMediaPlayer.PlaybackState.PlayingState
-        s.discord.update(track.get('title'), track.get('artist'), playing, s.pl.position(), s.pl.duration())
+        s.discord.update(track.get('title'), track.get('artist'), playing, s.pl.position(), s.pl.duration(), track.get('cover_url', ''))
     def closeEvent(s, event):
         if s.discord: s.discord.stop()
         super().closeEvent(event)
@@ -2344,7 +2343,7 @@ class Win(QWidget):
         style_button = QPushButton('Edit custom Qt style sheet'); style_button.setObjectName('grey'); style_button.clicked.connect(s.open_qss_editor); v.addWidget(style_button, 0, Qt.AlignLeft)
         c = QLabel('Discord Rich Presence'); c.setObjectName('h2'); v.addSpacing(10); v.addWidget(c)
         d = QLabel('Optional. Create a Discord application and paste its application ID. When enabled, Bubble sends the current song and playback state to your local Discord client.'); d.setObjectName('dim'); d.setWordWrap(True); v.addWidget(d)
-        s.discord_id = QLineEdit(s.cfg.get('discord_client_id', '')); s.discord_id.setPlaceholderText('Discord application ID'); s.discord_id.editingFinished.connect(s.save_discord_id); s.discord_id.setMaximumWidth(360); v.addWidget(s.discord_id)
+        s.discord_id = QLineEdit(s.cfg.get('discord_client_id') or DEFAULT_DISCORD_ID); s.discord_id.setPlaceholderText('Discord application ID'); s.discord_id.editingFinished.connect(s.save_discord_id); s.discord_id.setMaximumWidth(360); v.addWidget(s.discord_id)
         s.discord_chk = QCheckBox('Enable Discord Rich Presence'); s.discord_chk.setChecked(s.cfg.get('discord_presence', False)); s.discord_chk.toggled.connect(s.set_discord_presence); v.addWidget(s.discord_chk)
         c = QLabel('Plugins'); c.setObjectName('h2'); v.addSpacing(10); v.addWidget(c)
         plugin_note = QLabel('Add trusted Python plugins that contribute actions to the track menu. Plugins run locally and can access files as your user.'); plugin_note.setObjectName('dim'); plugin_note.setWordWrap(True); v.addWidget(plugin_note)
