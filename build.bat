@@ -1,5 +1,5 @@
 @echo off
-set "PYTHON=C:\Users\jordan\AppData\Local\Python\pythoncore-3.14-64\python.exe"
+set "PYTHON=python"
 "%PYTHON%" -m pip install -r requirements.txt
 if errorlevel 1 exit /b 1
 "%PYTHON%" -m pip install -U pypresence
